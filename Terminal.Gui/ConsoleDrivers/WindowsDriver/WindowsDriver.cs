@@ -44,8 +44,8 @@ namespace Terminal.Gui {
 
 		public WindowsConsole ()
 		{
-			InputHandle = GetStdHandle (STD_INPUT_HANDLE);
-			OutputHandle = GetStdHandle (STD_OUTPUT_HANDLE);
+			InputHandle = Win32Bindings.GetStdHandle (STD_INPUT_HANDLE);
+			OutputHandle = Win32Bindings.GetStdHandle (STD_OUTPUT_HANDLE);
 			originalConsoleMode = ConsoleMode;
 			var newConsoleMode = originalConsoleMode;
 			newConsoleMode |= (uint)(ConsoleModes.EnableMouseInput | ConsoleModes.EnableExtendedFlags);
@@ -59,7 +59,7 @@ namespace Terminal.Gui {
 		public bool WriteToConsole (CharInfo [] charInfoBuffer, Coord coords, SmallRect window)
 		{
 			if (ScreenBuffer == IntPtr.Zero) {
-				ScreenBuffer = CreateConsoleScreenBuffer (
+				ScreenBuffer = Win32Bindings.CreateConsoleScreenBuffer (
 					DesiredAccess.GenericRead | DesiredAccess.GenericWrite,
 					ShareMode.FileShareRead | ShareMode.FileShareWrite,
 					IntPtr.Zero,
@@ -73,35 +73,36 @@ namespace Terminal.Gui {
 						throw new System.ComponentModel.Win32Exception (err);
 				}
 
-				if (!SetConsoleActiveScreenBuffer (ScreenBuffer)) {
+				if (!Win32Bindings.SetConsoleActiveScreenBuffer (ScreenBuffer)) {
 					var err = Marshal.GetLastWin32Error ();
 					throw new System.ComponentModel.Win32Exception (err);
 				}
 
 				OriginalStdOutChars = new CharInfo [Console.WindowHeight * Console.WindowWidth];
 
-				ReadConsoleOutput (OutputHandle, OriginalStdOutChars, coords, new Coord () { X = 0, Y = 0 }, ref window);
+				Win32Bindings.ReadConsoleOutput (OutputHandle, OriginalStdOutChars, coords,
+					new Coord { X = 0, Y = 0 }, ref window);
 			}
 
-			return WriteConsoleOutput (ScreenBuffer, charInfoBuffer, coords, new Coord () { X = window.Left, Y = window.Top }, ref window);
+			return Win32Bindings.WriteConsoleOutput (ScreenBuffer, charInfoBuffer, coords, 
+				new Coord { X = window.Left, Y = window.Top }, ref window);
 		}
 
 		public bool SetCursorPosition (Coord position)
 		{
-			return SetConsoleCursorPosition (ScreenBuffer, position);
+			return Win32Bindings.SetConsoleCursorPosition (ScreenBuffer, position);
 		}
 
 		public void Cleanup ()
 		{
 			ConsoleMode = originalConsoleMode;
 			//ContinueListeningForConsoleEvents = false;
-			if (!SetConsoleActiveScreenBuffer (OutputHandle)) {
+			if (!Win32Bindings.SetConsoleActiveScreenBuffer (OutputHandle)) {
 				var err = Marshal.GetLastWin32Error ();
 				Console.WriteLine ("Error: {0}", err);
 			}
 
-			if (ScreenBuffer != IntPtr.Zero)
-				CloseHandle (ScreenBuffer);
+			if (ScreenBuffer != IntPtr.Zero) Win32Bindings.CloseHandle (ScreenBuffer);
 
 			ScreenBuffer = IntPtr.Zero;
 		}
@@ -110,13 +111,12 @@ namespace Terminal.Gui {
 
 		public uint ConsoleMode {
 			get {
-				uint v;
-				GetConsoleMode (InputHandle, out v);
+				Win32Bindings.GetConsoleMode (InputHandle, out var v);
 				return v;
 			}
 
 			set {
-				SetConsoleMode (InputHandle, value);
+				Win32Bindings.SetConsoleMode (InputHandle, value);
 			}
 		}
 
@@ -271,13 +271,13 @@ namespace Terminal.Gui {
 		};
 
 		[Flags]
-		enum ShareMode : uint {
+		public enum ShareMode : uint {
 			FileShareRead = 1,
 			FileShareWrite = 2,
 		}
 
 		[Flags]
-		enum DesiredAccess : uint {
+		public enum DesiredAccess : uint {
 			GenericRead = 2147483648,
 			GenericWrite = 1073741824,
 		}
@@ -355,69 +355,32 @@ namespace Terminal.Gui {
 			}
 		}
 
-		[DllImport ("kernel32.dll", SetLastError = true)]
-		static extern IntPtr GetStdHandle (int nStdHandle);
-
-		[DllImport ("kernel32.dll", SetLastError = true)]
-		static extern bool CloseHandle (IntPtr handle);
-
-		[DllImport ("kernel32.dll", EntryPoint = "ReadConsoleInputW", CharSet = CharSet.Unicode)]
-		public static extern bool ReadConsoleInput (
-			IntPtr hConsoleInput,
-			[Out] InputRecord [] lpBuffer,
-			uint nLength,
-			out uint lpNumberOfEventsRead);
-
-		[DllImport ("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-		static extern bool ReadConsoleOutput (
-			IntPtr hConsoleOutput,
-			[Out] CharInfo [] lpBuffer,
-			Coord dwBufferSize,
-			Coord dwBufferCoord,
-			ref SmallRect lpReadRegion
-		);
-
-		[DllImport ("kernel32.dll", EntryPoint = "WriteConsoleOutput", SetLastError = true, CharSet = CharSet.Unicode)]
-		static extern bool WriteConsoleOutput (
-			IntPtr hConsoleOutput,
-			CharInfo [] lpBuffer,
-			Coord dwBufferSize,
-			Coord dwBufferCoord,
-			ref SmallRect lpWriteRegion
-		);
-
-		[DllImport ("kernel32.dll")]
-		static extern bool SetConsoleCursorPosition (IntPtr hConsoleOutput, Coord dwCursorPosition);
-
-		[DllImport ("kernel32.dll")]
-		static extern bool GetConsoleMode (IntPtr hConsoleHandle, out uint lpMode);
-
-
-		[DllImport ("kernel32.dll")]
-		static extern bool SetConsoleMode (IntPtr hConsoleHandle, uint dwMode);
-
-		[DllImport ("kernel32.dll", SetLastError = true)]
-		static extern IntPtr CreateConsoleScreenBuffer (
-			DesiredAccess dwDesiredAccess,
-			ShareMode dwShareMode,
-			IntPtr secutiryAttributes,
-			UInt32 flags,
-			IntPtr screenBufferData
-		);
 
 		internal static IntPtr INVALID_HANDLE_VALUE = new IntPtr (-1);
 
 
-		[DllImport ("kernel32.dll", SetLastError = true)]
-		static extern bool SetConsoleActiveScreenBuffer (IntPtr Handle);
-
-		[DllImport ("kernel32.dll", SetLastError = true)]
-		static extern bool GetNumberOfConsoleInputEvents (IntPtr handle, out uint lpcNumberOfEvents);
 		public uint InputEventCount {
 			get {
-				uint v;
-				GetNumberOfConsoleInputEvents (InputHandle, out v);
+				Win32Bindings.GetNumberOfConsoleInputEvents (InputHandle, out var v);
 				return v;
+			}
+		}
+		
+		public InputRecord [] ReadConsoleInput ()
+		{
+			const int bufferSize = 1;
+			var pRecord = Marshal.AllocHGlobal (Marshal.SizeOf<InputRecord> () * bufferSize);
+			try {
+				Win32Bindings.ReadConsoleInput (InputHandle, pRecord, bufferSize,
+					out var numberEventsRead);
+
+				return numberEventsRead == 0
+					? null
+					: new [] {Marshal.PtrToStructure<InputRecord> (pRecord)};
+			} catch (Exception) {
+				return null;
+			} finally {
+				Marshal.FreeHGlobal (pRecord);
 			}
 		}
 
@@ -577,13 +540,7 @@ namespace Terminal.Gui {
 				waitForProbe.Wait ();
 				waitForProbe.Reset ();
 
-				uint numberEventsRead = 0;
-
-				WindowsConsole.ReadConsoleInput (winConsole.InputHandle, records, 1, out numberEventsRead);
-				if (numberEventsRead == 0)
-					result = null;
-				else
-					result = records;
+				result = winConsole.ReadConsoleInput();
 
 				eventReady.Set ();
 			}
