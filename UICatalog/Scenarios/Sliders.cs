@@ -5,9 +5,9 @@ using System.Linq;
 using Terminal.Gui;
 
 namespace UICatalog {
-	[ScenarioMetadata (Name: "Sliders", Description: "Demonstrates all sorts of Sliders")]
-	[ScenarioCategory ("")]
-	[ScenarioCategory ("Layout")]
+	[ScenarioMetadata (Name: "Slider", Description: "Demonstrates all sorts of Sliders")]
+	[ScenarioCategory ("Controls")]
+
 	class Sliders : Scenario {
 		public override void Setup ()
 		{
