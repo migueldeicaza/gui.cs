@@ -641,7 +641,7 @@ namespace Terminal.Gui {
 
 		void DrawHeader ()
 		{
-
+			Driver.AddStr (HAlignText (header, Bounds.Width, TextAlignment.Centered));
 		}
 
 		void DrawSlider ()
