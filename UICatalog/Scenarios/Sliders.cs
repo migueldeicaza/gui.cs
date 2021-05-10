@@ -124,7 +124,7 @@ namespace UICatalog {
 					},
 					new SliderOption<(Color, Color)> {
 						Data = (Color.Green,Color.BrightGreen),
-						Legend = "Gren"
+						Legend = "Green"
 					},
 					new SliderOption<(Color, Color)> {
 						Data = (Color.Cyan,Color.BrightCyan),
