@@ -397,7 +397,7 @@ namespace Terminal.Gui {
 			get { return header; }
 			set {
 				header = value;
-				Height = CalcHeight ();
+				SetNeedsDisplay ();
 			}
 		}
 
