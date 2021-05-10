@@ -498,6 +498,36 @@ namespace Terminal.Gui {
 			}
 		}
 
+		/// <summary>
+		/// Set Option
+		/// </summary>
+		public void SetOption (int optionIndex)
+		{
+			if (!currentOptions.Contains (optionIndex) && optionIndex >= 0 && optionIndex < options.Count) {
+				currentOption = optionIndex;
+				SetCurrentOption ();
+			}
+		}
+
+		/// <summary>
+		/// UnSet Option
+		/// </summary>
+		public void UnSetOption (int optionIndex)
+		{
+			if (currentOptions.Contains (optionIndex) && optionIndex >= 0 && optionIndex < options.Count) {
+				currentOption = optionIndex;
+				SetCurrentOption ();
+			}
+		}
+
+		/// <summary>
+		/// Get the current setted options indexes.
+		/// </summary>
+		public List<int> GetSettedOptions ()
+		{
+			return currentOptions;
+		}
+
 		#endregion
 
 		#region Helpers
@@ -595,7 +625,7 @@ namespace Terminal.Gui {
 			return option;
 		}
 
-		void SetOption ()
+		void SetCurrentOption ()
 		{
 			switch (type) {
 			case SliderType.Single:
@@ -869,7 +899,7 @@ namespace Terminal.Gui {
 				if (option != -1) {
 					currentOption = option;
 					OptionFocused?.Invoke (currentOption, options [currentOption]);
-					SetOption ();
+					SetCurrentOption ();
 					SetNeedsDisplay ();
 					return true;
 				}
@@ -918,7 +948,7 @@ namespace Terminal.Gui {
 				OptionFocused?.Invoke (currentOption, options [currentOption]);
 				break;
 			case Key.Enter:
-				SetOption ();
+				SetCurrentOption ();
 				break;
 			default:
 				return false;
