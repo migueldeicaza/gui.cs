@@ -332,7 +332,7 @@ namespace Terminal.Gui {
 		/// <summary>
 		/// Initializes a new instance of the <see cref="Slider"/> class.
 		/// </summary>
-		public Slider ()
+		public Slider () : this (ustring.Empty, new List<T> ())
 		{
 		}
 
@@ -340,7 +340,7 @@ namespace Terminal.Gui {
 		/// Initializes a new instance of the <see cref="Slider"/> class.
 		/// </summary>
 		/// <param name="options">Initial slider options.</param>
-		public Slider (List<T> options) : this (ustring.Empty, options.Select (e => new SliderOption<T> { Legend = e.ToString () }).ToList ())
+		public Slider (List<T> options) : this (ustring.Empty, options.Select (e => new SliderOption<T> { Data = e, Legend = e.ToString () }).ToList ())
 		{
 		}
 
@@ -349,7 +349,7 @@ namespace Terminal.Gui {
 		/// </summary>
 		/// <param name="header">Header text of the slider.</param>
 		/// <param name="options">Initial slider options.</param>
-		public Slider (ustring header, List<T> options) : this (header, options.Select (e => new SliderOption<T> { Legend = e.ToString () }).ToList ())
+		public Slider (ustring header, List<T> options) : this (header, options.Select (e => new SliderOption<T> { Data = e, Legend = e.ToString () }).ToList ())
 		{
 		}
 
@@ -405,6 +405,7 @@ namespace Terminal.Gui {
 			get { return header; }
 			set {
 				header = value;
+				Height = CalcHeight ();
 				SetNeedsDisplay ();
 			}
 		}
@@ -427,6 +428,9 @@ namespace Terminal.Gui {
 			get { return options; }
 			set {
 				options = value;
+
+				if (options == null || options.Count == 0)
+					return;
 
 				// Note(jmperricone): We need to set/find the LeftSpacing, InnerSpacing and RightSpacing.
 
@@ -626,12 +630,12 @@ namespace Terminal.Gui {
 			}
 
 			// Testing 
-			for (int yy = 0; yy < bounds.Height; yy++) {
-				for (int xx = 0; xx < bounds.Width; xx++) {
-					Move (xx, yy);
-					Driver.AddRune ('X');
-				}
-			}
+			//for (int yy = 0; yy < bounds.Height; yy++) {
+			//	for (int xx = 0; xx < bounds.Width; xx++) {
+			//		Move (xx, yy);
+			//		Driver.AddRune ('X');
+			//	}
+			//}
 
 			// if autosize best
 
