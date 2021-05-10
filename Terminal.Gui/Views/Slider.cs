@@ -5,11 +5,10 @@
 //   José Miguel Perricone (jmperricone@hotmail.com)
 //
 
+using NStack;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.RegularExpressions;
-using NStack;
 
 namespace Terminal.Gui {
 
@@ -21,22 +20,22 @@ namespace Terminal.Gui {
 		/// <summary>
 		/// Allow range start and end be in the same option, as a single option.
 		/// </summary>
-		public bool RangeAllowSingle { get; set; }
+		internal bool RangeAllowSingle { get; set; }
 
 		/// <summary>
 		/// Show <see cref="LeftBorder"/> character and <see cref="RightBorder"/> character at the beginning and at the end of the slider respectively.
 		/// </summary>
-		public bool ShowBorders { get; set; }
+		internal bool ShowBorders { get; set; }
 
 		/// <summary>
 		/// Show/Hide the slider Header.
 		/// </summary>
-		public bool ShowHeader { get; set; }
+		internal bool ShowHeader { get; set; }
 
 		/// <summary>
 		/// Show/Hide the options legends.
 		/// </summary>
-		public bool ShowLegends { get; set; }
+		internal bool ShowLegends { get; set; }
 
 		/// <summary>
 		/// Left margin.
@@ -309,7 +308,6 @@ namespace Terminal.Gui {
 		List<int> currentOptions = new List<int> ();
 		List<SliderOption<T>> options;
 		int currentOption = 0;
-
 		ustring header;
 
 		#region Events
@@ -405,6 +403,7 @@ namespace Terminal.Gui {
 			get { return header; }
 			set {
 				header = value;
+				Width = CalcWidth ();
 				Height = CalcHeight ();
 				SetNeedsDisplay ();
 			}
@@ -455,6 +454,50 @@ namespace Terminal.Gui {
 			}
 		}
 
+		/// <summary>
+		/// Allow range start and end be in the same option, as a single option.
+		/// </summary>
+		public bool RangeAllowSingle {
+			get { return style.RangeAllowSingle; }
+			set {
+				style.RangeAllowSingle = value;
+			}
+		}
+
+		/// <summary>
+		/// Show <see cref="SliderStyle.LeftBorder"/> character and <see cref="SliderStyle.RightBorder"/> character at the beginning and at the end of the slider respectively.
+		/// </summary>
+		public bool ShowBorders {
+			get { return style.ShowBorders; }
+			set {
+				style.ShowBorders = value;
+				Width = CalcWidth ();
+			}
+		}
+
+		/// <summary>
+		/// Show/Hide the slider Header.
+		/// </summary>
+		public bool ShowHeader {
+			get { return style.ShowHeader; }
+			set {
+				style.ShowHeader = value;
+				Width = CalcWidth ();
+				Height = CalcHeight ();
+			}
+		}
+
+		/// <summary>
+		/// Show/Hide the options legends.
+		/// </summary>
+		public bool ShowLegends {
+			get { return style.ShowLegends; }
+			set {
+				style.ShowLegends = value;
+				Height = CalcHeight ();
+			}
+		}
+
 		#endregion
 
 		#region Helpers
@@ -495,6 +538,9 @@ namespace Terminal.Gui {
 
 		int CalcWidth ()
 		{
+			if (options.Count == 0)
+				return 0;
+
 			var width = 0;
 			width += style.ShowBorders ? 2 : 0;
 			width += style.LeftSpacing + style.RightSpacing;
@@ -502,12 +548,13 @@ namespace Terminal.Gui {
 			width += (options.Count - 1) * style.InnerSpacing;
 
 			// If header is bigger than the slider, add margin to the slider and return header's width.
-			if (style.ShowHeader && header != ustring.Empty && header.Length > width) {
+			if (style.ShowHeader && header != null && header != ustring.Empty && header.Length > width) {
 				var diff = header.Length - width;
 				style.LeftMargin = diff / 2;
 				style.RightMargin = diff / 2 + diff % 2;
 				return header.Length;
 			}
+
 			return width;
 		}
 
