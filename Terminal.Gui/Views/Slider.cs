@@ -361,8 +361,6 @@ namespace Terminal.Gui {
 		{
 			SetDefaultHorizontalStyle ();
 
-			this.Options = options;
-
 			CanFocus = true;
 
 			if (header != ustring.Empty) {
@@ -370,7 +368,8 @@ namespace Terminal.Gui {
 				this.header = header;
 			}
 
-			this.Width = CalcWidth ();
+			this.Options = options;
+
 			this.Height = CalcHeight ();
 		}
 
@@ -493,7 +492,8 @@ namespace Terminal.Gui {
 
 		int CalcHeight ()
 		{
-			var height = 1;
+			var height = 1; // slider
+			height += style.ShowHeader ? 1 : 0;
 			height += style.ShowLegends ? 1 : 0;
 			return height;
 		}
