@@ -39,6 +39,15 @@ namespace Terminal.Gui {
 		public bool ShowLegends { get; set; }
 
 		/// <summary>
+		/// Left margin.
+		/// </summary>
+		public int LeftMargin { get; set; }
+		/// <summary>
+		/// Right margin.
+		/// </summary>
+		public int RightMargin { get; set; }
+
+		/// <summary>
 		/// Left space before the first option.
 		/// </summary>
 		public int LeftSpacing { get; set; }
@@ -487,6 +496,14 @@ namespace Terminal.Gui {
 			width += style.LeftSpacing + style.RightSpacing;
 			width += options.Count;
 			width += (options.Count - 1) * style.InnerSpacing;
+
+			// If header is bigger than the slider, add margin to the slider and return header's width.
+			if (style.ShowHeader && header != ustring.Empty && header.Length > width) {
+				var diff = header.Length - width;
+				style.LeftMargin = diff / 2;
+				style.RightMargin = diff / 2 + diff % 2;
+				return header.Length;
+			}
 			return width;
 		}
 
@@ -501,18 +518,20 @@ namespace Terminal.Gui {
 		(int x, int y) GetPositionByOption (int option)
 		{
 			var x = style.ShowBorders ? 1 : 0;
+			x += style.LeftMargin;
 			x += style.LeftSpacing;
 			x += option * (style.InnerSpacing + 1);
 
-			return (x, 0);
+			return (x, style.ShowHeader ? 1 : 0);
 		}
 
 		int GetOptionByPosition (int x, int y)
 		{
-			if (y != 0)
+			if (y != (style.ShowHeader ? 1 : 0))
 				return -1;
 
 			x -= style.ShowBorders ? 1 : 0;
+			x -= style.LeftMargin;
 			x -= style.LeftSpacing;
 
 			var option = x / (style.InnerSpacing + 1);
@@ -629,12 +648,12 @@ namespace Terminal.Gui {
 			}
 
 			// Draw Slider
-			Move (0, y++);
+			Move (style.LeftMargin, y++);
 			DrawSlider ();
 
 			// Draw Legends.
 			if (style.ShowLegends) {
-				Move (style.ShowBorders ? 1 : 0, y);
+				Move (style.LeftMargin + (style.ShowBorders ? 1 : 0), y);
 				DrawLegends ();
 			}
 		}
@@ -795,7 +814,7 @@ namespace Terminal.Gui {
 			// TODO(jmperricone): Make Range type work with mouse.
 
 			if (mouseEvent.Flags.HasFlag (MouseFlags.Button1Clicked)) {
-				var option = GetOptionByPosition (mouseEvent.X, 0);
+				var option = GetOptionByPosition (mouseEvent.X, mouseEvent.Y);
 				if (option != -1) {
 					currentOption = option;
 					OptionFocused?.Invoke (currentOption, options [currentOption]);
