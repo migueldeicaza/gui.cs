@@ -209,6 +209,11 @@ namespace Terminal.Gui {
 
 		public bool HeightAsBuffer { get; set; }
 
+		/// <summary>
+		/// Underscore - Character Attributes
+		/// </summary>
+		public const ushort COMMON_LVB_UNDERSCORE = 0x8000;
+
 		[Flags]
 		public enum ConsoleModes : uint {
 			EnableProcessedInput = 1,
@@ -1260,6 +1265,7 @@ namespace Terminal.Gui {
 
 			if (Clip.Contains (ccol, crow)) {
 				OutputBuffer [position].Attributes = (ushort)currentAttribute;
+				OutputBuffer [position].Attributes |= (ushort)(currentUnderlineAttribute ? WindowsConsole.COMMON_LVB_UNDERSCORE : 0);
 				OutputBuffer [position].Char.UnicodeChar = (char)rune;
 				WindowsConsole.SmallRect.Update (ref damageRegion, (short)ccol, (short)crow);
 			}
@@ -1287,10 +1293,12 @@ namespace Terminal.Gui {
 		}
 
 		int currentAttribute;
+		bool currentUnderlineAttribute;
 
 		public override void SetAttribute (Attribute c)
 		{
 			currentAttribute = c.Value;
+			currentUnderlineAttribute = c.UnderLine;
 		}
 
 		Attribute MakeColor (ConsoleColor f, ConsoleColor b)
@@ -1303,9 +1311,11 @@ namespace Terminal.Gui {
 			);
 		}
 
-		public override Attribute MakeAttribute (Color fore, Color back)
+		public override Attribute MakeAttribute (Color fore, Color back, bool underline = false)
 		{
-			return MakeColor ((ConsoleColor)fore, (ConsoleColor)back);
+			var attr = MakeColor ((ConsoleColor)fore, (ConsoleColor)back);
+			attr.UnderLine = underline;
+			return attr;
 		}
 
 		public override void Refresh ()
@@ -1466,8 +1476,7 @@ namespace Terminal.Gui {
 
 			try {
 				ProcessInput (input);
-			} catch (OverflowException) { }
-			finally {
+			} catch (OverflowException) { } finally {
 				keyEvent.bKeyDown = false;
 				input.KeyEvent = keyEvent;
 				ProcessInput (input);

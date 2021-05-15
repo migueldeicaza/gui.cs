@@ -15,6 +15,7 @@ namespace UICatalog {
 			string txt = "HELLO WORLD";
 
 			var color1 = new ColorScheme { Normal = Application.Driver.MakeAttribute (Color.Black, Color.Gray) };
+			var color1_underline = new ColorScheme { Normal = Application.Driver.MakeAttribute (Color.Black, Color.Gray, true) };
 			var color2 = new ColorScheme { Normal = Application.Driver.MakeAttribute (Color.Black, Color.DarkGray) };
 
 			var txts = new List<Label> (); // single line
@@ -97,7 +98,6 @@ namespace UICatalog {
 
 			Win.Add (container);
 
-
 			// Edit Text
 
 			var editText = new TextView () {
@@ -163,13 +163,37 @@ namespace UICatalog {
 			Win.Add (justifyCheckbox);
 
 
+			// UNDERLINE CHECKBOX
+
+			var underlineCheckbox = new CheckBox ("Underline") {
+				X = Pos.Right (container) + 1,
+				Y = Pos.Y (justifyCheckbox) + 1,
+				Width = Dim.Fill (10),
+				Height = 1
+			};
+
+			underlineCheckbox.Toggled += (prevtoggled) => {
+				if (prevtoggled) {
+					foreach (var t in mtxts) {
+						t.ColorScheme = color1;
+					}
+				} else {
+					foreach (var t in mtxts) {
+						t.ColorScheme = color1_underline;
+					}
+				}
+			};
+
+			Win.Add (underlineCheckbox);
+
+
 			// Direction Options
 
 			var directionsEnum = Enum.GetValues (typeof (Terminal.Gui.TextDirection)).Cast<Terminal.Gui.TextDirection> ().ToList ();
 
 			var directionOptions = new RadioGroup (directionsEnum.Select (e => NStack.ustring.Make (e.ToString ())).ToArray ()) {
 				X = Pos.Right (container) + 1,
-				Y = Pos.Bottom (justifyCheckbox) + 1,
+				Y = Pos.Bottom (underlineCheckbox) + 1,
 				Width = Dim.Fill (10),
 				Height = Dim.Fill (1),
 				HotKeySpecifier = '\xffff'

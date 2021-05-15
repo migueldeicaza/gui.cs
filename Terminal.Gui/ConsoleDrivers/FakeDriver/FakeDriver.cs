@@ -168,9 +168,11 @@ namespace Terminal.Gui {
 			//MockConsole.Clear ();
 		}
 
-		public override Attribute MakeAttribute (Color fore, Color back)
+		public override Attribute MakeAttribute (Color fore, Color back, bool underline = false)
 		{
-			return MakeColor ((ConsoleColor)fore, (ConsoleColor)back);
+			var attr = MakeColor ((ConsoleColor)fore, (ConsoleColor)back);
+			attr.UnderLine = underline;
+			return attr;
 		}
 
 		int redrawColor = -1;
