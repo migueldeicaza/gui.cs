@@ -447,7 +447,7 @@ namespace Terminal.Gui.Views {
 		}
 
 		[Fact]
-		public void Constructor_ShowBothScrollIndicator_False_Refresh_Does_Not_Throws_An_Object_Null_Exception ()
+		public void Constructor_ShowBothScrollIndicator_False_And_IsVertical_True_Refresh_Does_Not_Throws_An_Object_Null_Exception ()
 		{
 			var exception = Record.Exception (() => {
 				Application.Init (new FakeDriver (), new FakeMainLoop (() => FakeConsole.ReadKey (true)));
@@ -503,6 +503,81 @@ namespace Terminal.Gui.Views {
 					Assert.Equal (newScrollBarView.Position, listView.TopItem);
 					Assert.Equal (27, newScrollBarView.Position);
 					Assert.Equal (27, listView.TopItem);
+					Application.RequestStop ();
+				};
+
+				top.Add (win);
+
+				Application.Run ();
+
+				Application.Shutdown ();
+
+			});
+			Assert.Null (exception);
+		}
+
+		[Fact]
+		public void Constructor_ShowBothScrollIndicator_False_And_IsVertical_False_Refresh_Does_Not_Throws_An_Object_Null_Exception ()
+		{
+			var exception = Record.Exception (() => {
+				Application.Init (new FakeDriver (), new FakeMainLoop (() => FakeConsole.ReadKey (true)));
+
+				var top = Application.Top;
+
+				var win = new Window () {
+					X = 0,
+					Y = 0,
+					Width = Dim.Fill (),
+					Height = Dim.Fill ()
+				};
+
+				List<string> source = new List<string> ();
+
+				for (int i = 0; i < 50; i++) {
+					var text = $"item {i} - ";
+					for (int j = 0; j < 160; j++) {
+						var col = j.ToString ();
+						text += col.Length == 1 ? col [0] : col [1];
+					}
+					source.Add (text);
+				}
+
+				var listView = new ListView (source) {
+					X = 0,
+					Y = 0,
+					Width = Dim.Fill (),
+					Height = Dim.Fill ()
+				};
+				win.Add (listView);
+
+				var newScrollBarView = new ScrollBarView (listView, false, false) {
+					KeepContentAlwaysInViewport = true
+				};
+				win.Add (newScrollBarView);
+
+				newScrollBarView.ChangedPosition += () => {
+					listView.LeftItem = newScrollBarView.Position;
+					if (listView.LeftItem != newScrollBarView.Position) {
+						newScrollBarView.Position = listView.LeftItem;
+					}
+					Assert.Equal (newScrollBarView.Position, listView.LeftItem);
+					listView.SetNeedsDisplay ();
+				};
+
+				listView.DrawContent += (e) => {
+					newScrollBarView.Size = listView.Maxlength - 1;
+					Assert.Equal (newScrollBarView.Size, listView.Maxlength);
+					newScrollBarView.Position = listView.LeftItem;
+					Assert.Equal (newScrollBarView.Position, listView.LeftItem);
+					newScrollBarView.Refresh ();
+				};
+
+				top.Ready += () => {
+					newScrollBarView.Position = 100;
+					Assert.Equal (newScrollBarView.Position, newScrollBarView.Size - listView.LeftItem + (listView.LeftItem - listView.Bounds.Width));
+					Assert.Equal (newScrollBarView.Position, listView.LeftItem);
+					Assert.Equal (92, newScrollBarView.Position);
+					Assert.Equal (92, listView.LeftItem);
 					Application.RequestStop ();
 				};
 
