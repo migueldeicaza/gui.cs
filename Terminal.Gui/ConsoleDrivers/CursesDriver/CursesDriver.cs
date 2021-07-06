@@ -137,9 +137,10 @@ namespace Terminal.Gui {
 			return new Attribute (
 				//value: Curses.ColorPair (last_color_pair),
 				value: Curses.ColorPair (v),
-				foreground: (Color)foreground,
-				background: (Color)background);
-
+				//foreground: (Color)foreground,
+				foreground: MapCursesColor (foreground),
+				//background: (Color)background);
+				background: MapCursesColor (background));
 		}
 
 		int [,] colorPairs = new int [16, 16];
@@ -897,10 +898,50 @@ namespace Terminal.Gui {
 			throw new ArgumentException ("Invalid color code");
 		}
 
+		static Color MapCursesColor (int color)
+		{
+			switch (color) {
+			case Curses.COLOR_BLACK:
+				return Color.Black;
+			case Curses.COLOR_BLUE:
+				return Color.Blue;
+			case Curses.COLOR_GREEN:
+				return Color.Green;
+			case Curses.COLOR_CYAN:
+				return Color.Cyan;
+			case Curses.COLOR_RED:
+				return Color.Red;
+			case Curses.COLOR_MAGENTA:
+				return Color.Magenta;
+			case Curses.COLOR_YELLOW:
+				return Color.Brown;
+			case Curses.COLOR_WHITE:
+				return Color.Gray;
+			case Curses.COLOR_GRAY:
+				return Color.DarkGray;
+			case Curses.COLOR_BLUE | Curses.COLOR_GRAY:
+				return Color.BrightBlue;
+			case Curses.COLOR_GREEN | Curses.COLOR_GRAY:
+				return Color.BrightGreen;
+			case Curses.COLOR_CYAN | Curses.COLOR_GRAY:
+				return Color.BrightCyan;
+			case Curses.COLOR_RED | Curses.COLOR_GRAY:
+				return Color.BrightRed;
+			case Curses.COLOR_MAGENTA | Curses.COLOR_GRAY:
+				return Color.BrightMagenta;
+			case Curses.COLOR_YELLOW | Curses.COLOR_GRAY:
+				return Color.BrightYellow;
+			case Curses.COLOR_WHITE | Curses.COLOR_GRAY:
+				return Color.White;
+			}
+			throw new ArgumentException ("Invalid curses color code");
+		}
+
 		public override Attribute MakeAttribute (Color fore, Color back)
 		{
 			var f = MapColor (fore);
-			return MakeColor ((short)(f & 0xffff), (short)MapColor (back)) | ((f & Curses.A_BOLD) != 0 ? Curses.A_BOLD : 0);
+			//return MakeColor ((short)(f & 0xffff), (short)MapColor (back)) | ((f & Curses.A_BOLD) != 0 ? Curses.A_BOLD : 0);
+			return MakeColor ((short)(f & 0xffff), (short)MapColor (back));
 		}
 
 		public override void Suspend ()
