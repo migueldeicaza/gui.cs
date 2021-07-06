@@ -14,14 +14,20 @@ namespace Terminal.Gui {
 		public static ustring Contents {
 			get {
 				try {
-					return Application.Driver.Clipboard.GetClipboardData ();
+					if (IsSupported) {
+						return Application.Driver.Clipboard.GetClipboardData ();
+					} else {
+						return contents;
+					}
 				} catch (Exception) {
 					return contents;
 				}
 			}
 			set {
 				try {
-					Application.Driver.Clipboard.SetClipboardData (value.ToString ());
+					if (IsSupported) {
+						Application.Driver.Clipboard.SetClipboardData (value.ToString ());
+					}
 					contents = value;
 				} catch (Exception) {
 					contents = value;
