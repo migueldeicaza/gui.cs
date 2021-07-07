@@ -23,6 +23,12 @@ namespace UICatalog.Scenarios {
 		private MenuItem miCellLines;
 		private MenuItem miFullRowSelect;
 		private MenuItem miExpandLastColumn;
+		private MenuItem miAlternatingColors;
+		private MenuItem miCursor;
+
+		ColorScheme redColorScheme;
+		ColorScheme redColorSchemeAlt;
+		ColorScheme alternatingColorScheme;
 
 		public override void Setup ()
 		{
@@ -55,12 +61,12 @@ namespace UICatalog.Scenarios {
 					miExpandLastColumn = new MenuItem ("_ExpandLastColumn", "", () => ToggleExpandLastColumn()){Checked = tableView.Style.ExpandLastColumn, CheckType = MenuItemCheckStyle.Checked },
 					new MenuItem ("_AllLines", "", () => ToggleAllCellLines()),
 					new MenuItem ("_NoLines", "", () => ToggleNoCellLines()),
+					miAlternatingColors = new MenuItem ("Alternating Colors", "", () => ToggleAlternatingColors()){CheckType = MenuItemCheckStyle.Checked},
+					miCursor = new MenuItem ("Invert Selected Cell First Character", "", () => ToggleInvertSelectedCellFirstCharacter()){Checked = tableView.Style.InvertSelectedCellFirstCharacter,CheckType = MenuItemCheckStyle.Checked},
 					new MenuItem ("_ClearColumnStyles", "", () => ClearColumnStyles()),
 				}),
 			});
 			Top.Add (menu);
-
-
 
 			var statusBar = new StatusBar (new StatusItem [] {
 				new StatusItem(Key.F2, "~F2~ OpenExample", () => OpenExample(true)),
@@ -88,6 +94,28 @@ namespace UICatalog.Scenarios {
 			tableView.KeyPress += TableViewKeyPress;
 
 			SetupScrollBar();
+
+			redColorScheme = new ColorScheme(){
+				Disabled = Win.ColorScheme.Disabled,
+				HotFocus = Win.ColorScheme.HotFocus,
+				Focus = Win.ColorScheme.Focus,
+				Normal = Application.Driver.MakeAttribute(Color.Red,Win.ColorScheme.Normal.Background)
+			};
+
+			alternatingColorScheme = new ColorScheme(){
+
+				Disabled = Win.ColorScheme.Disabled,
+				HotFocus = Win.ColorScheme.HotFocus,
+				Focus = Win.ColorScheme.Focus,
+				Normal = Application.Driver.MakeAttribute(Color.White,Color.BrightBlue)
+			};
+			redColorSchemeAlt = new ColorScheme(){
+
+				Disabled = Win.ColorScheme.Disabled,
+				HotFocus = Win.ColorScheme.HotFocus,
+				Focus = Win.ColorScheme.Focus,
+				Normal = Application.Driver.MakeAttribute(Color.Red,Color.BrightBlue)
+			};
 		}
 
 		private void SetupScrollBar ()
@@ -226,8 +254,29 @@ namespace UICatalog.Scenarios {
 
 			tableView.Update();
 		}
-		
 
+		private void ToggleAlternatingColors()
+		{
+			//toggle menu item
+			miAlternatingColors.Checked = !miAlternatingColors.Checked;
+
+			if(miAlternatingColors.Checked){
+				tableView.Style.RowColorGetter = (a)=> {return a.RowIndex%2==0 ? alternatingColorScheme : null;};
+			}
+			else
+			{
+				tableView.Style.RowColorGetter = null;
+			}
+			tableView.SetNeedsDisplay();
+		}
+
+		private void ToggleInvertSelectedCellFirstCharacter ()
+		{
+			//toggle menu item
+			miCursor.Checked = !miCursor.Checked;
+			tableView.Style.InvertSelectedCellFirstCharacter = miCursor.Checked;
+			tableView.SetNeedsDisplay ();
+		}
 		private void CloseExample ()
 		{
 			tableView.Table = null;
@@ -268,7 +317,15 @@ namespace UICatalog.Scenarios {
 								// align positive values left
 								TextAlignment.Left:
 								// not a double
-								TextAlignment.Left
+								TextAlignment.Left,
+				
+				ColorGetter = (a)=> a.CellValue is double d ? 
+								// color 0 and negative values red
+								d <= 0.0000001 ? a.RowIndex%2==0 && miAlternatingColors.Checked ? redColorSchemeAlt: redColorScheme : 
+								// use normal scheme for positive values
+								null:
+								// not a double
+								null
 			};
 			
 			tableView.Style.ColumnStyles.Add(tableView.Table.Columns["DateCol"],dateFormatStyle);

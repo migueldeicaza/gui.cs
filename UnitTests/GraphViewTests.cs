@@ -116,6 +116,53 @@ namespace Terminal.Gui.Views {
 			}
 		}
 
+#pragma warning disable xUnit1013 // Public method should be marked as test
+		/// <summary>
+		/// Verifies the console was rendered using the given <paramref name="expectedColors"/> at the given locations.
+		/// Pass a bitmap of indexes into <paramref name="expectedColors"/> as <paramref name="expectedLook"/> and the
+		/// test method will verify those colors were used in the row/col of the console during rendering
+		/// </summary>
+		/// <param name="expectedLook">Numbers between 0 and 9 for each row/col of the console.  Must be valid indexes of <paramref name="expectedColors"/></param>
+		/// <param name="expectedColors"></param>
+		public static void AssertDriverColorsAre (string expectedLook, Attribute[] expectedColors)
+		{
+#pragma warning restore xUnit1013 // Public method should be marked as test
+
+			if(expectedColors.Length > 10) {
+				throw new ArgumentException ("This method only works for UIs that use at most 10 colors");
+			}
+
+			expectedLook = expectedLook.Trim ();
+			var driver = ((FakeDriver)Application.Driver);
+
+			var contents = driver.Contents;
+
+			int r = 0;
+			foreach(var line in expectedLook.Split ('\n').Select(l=>l.Trim())) {
+
+				for (int c = 0; c < line.Length; c++) {
+
+					int val = contents [r, c, 1];
+
+					var match = expectedColors.Where (e => e.Value == val).ToList ();
+					if (match.Count == 0) {
+						throw new Exception ($"Unexpected color {val} was used at row {r} and col {c}.  Color value was {val} (expected colors were {string.Join (",", expectedColors.Select (c => c.Value))})");
+					} else if (match.Count > 1) {
+						throw new ArgumentException ($"Bad value for expectedColors, {match.Count} Attributes had the same Value");
+					}
+
+					var colorUsed = Array.IndexOf(expectedColors,match[0]).ToString()[0];
+					var userExpected = line [c];
+
+					if( colorUsed != userExpected) {
+						throw new Exception ($"Colors used did not match expected at row {r} and col {c}.  Color index used was {colorUsed} but test expected {userExpected} (these are indexes into the expectedColors array)");
+					}
+				}
+
+				r++;
+			}
+		}
+
 		#region Screen to Graph Tests
 
 		[Fact]

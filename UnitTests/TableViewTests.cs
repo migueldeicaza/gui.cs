@@ -495,6 +495,54 @@ namespace Terminal.Gui.Views {
 			Application.Shutdown ();
 		}
 
+		[Fact]
+		public void TableView_ColorsTest_ColorGetter ()
+		{
+			var tv = SetUpMiniTable ();
+
+			tv.Style.ExpandLastColumn = false;
+			tv.Style.InvertSelectedCellFirstCharacter = true;
+
+			// width exactly matches the max col widths
+			tv.Bounds = new Rect (0, 0, 5, 4);
+			
+			// Create a style for column B
+			var bStyle = tv.Style.GetOrCreateColumnStyle (tv.Table.Columns ["B"]);
+
+			// when B is 2 use the custom highlight colour
+			ColorScheme cellHighlight = new ColorScheme () { Normal = Attribute.Make (Color.BrightCyan, Color.DarkGray) };
+			bStyle.ColorGetter = (a) => Convert.ToInt32(a.CellValue) == 2 ? cellHighlight : null;
+
+			tv.Redraw (tv.Bounds);
+
+			string expected = @"
+┌─┬─┐
+│A│B│
+├─┼─┤
+│1│2│
+";
+			GraphViewTests.AssertDriverContentsAre (expected, output);
+
+			string expectedColors = @"
+00000
+00000
+00000
+01020
+";
+			var invertedNormalColor = Application.Driver.MakeAttribute (tv.ColorScheme.Normal.Background, tv.ColorScheme.Normal.Foreground);
+
+			GraphViewTests.AssertDriverColorsAre (expectedColors, new Attribute [] {
+				// 0
+				tv.ColorScheme.Normal,				
+				// 1
+				invertedNormalColor,				
+				// 2
+				cellHighlight.Normal});
+
+			// Shutdown must be called to safely clean up Application if Init has been called
+			Application.Shutdown ();
+		}
+
 		private TableView SetUpMiniTable ()
 		{
 
