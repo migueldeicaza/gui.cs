@@ -8,6 +8,6 @@
         <PackageReference Include="Pharmacist.Common" Version="2.0.8" />
         <PackageReference Include="Terminal.Gui" Version="1.1.1.*" />
         <PackageReference Include="ReactiveUI.Fody" Version="13.3.2" />
-        <PackageReference Include="ReactiveUI" Version="13.3.2" />
+        <PackageReference Include="ReactiveUI" Version="14.1.1" />
     </ItemGroup>
 </Project>
