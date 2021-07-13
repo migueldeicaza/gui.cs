@@ -1283,6 +1283,7 @@ namespace Terminal.Gui {
 			}
 			set {
 				colorScheme = value;
+				SetNeedsDisplay ();
 			}
 		}
 
