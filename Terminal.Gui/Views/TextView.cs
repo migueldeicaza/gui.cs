@@ -38,15 +38,10 @@ namespace Terminal.Gui {
 
 		public bool LoadFile (string file)
 		{
-			if (file == null)
-				throw new ArgumentNullException (nameof (file));
-			try {
-				FilePath = file;
-				var stream = File.OpenRead (file);
-			} catch {
-				return false;
-			}
-			LoadStream (File.OpenRead (file));
+			FilePath = file ?? throw new ArgumentNullException (nameof (file));
+
+			var stream = File.OpenRead (file);
+			LoadStream (stream);
 			return true;
 		}
 
@@ -54,12 +49,9 @@ namespace Terminal.Gui {
 		{
 			if (FilePath == null)
 				throw new ArgumentNullException (nameof (FilePath));
-			try {
-				FilePath = null;
-				lines = new List<List<Rune>> ();
-			} catch {
-				return false;
-			}
+
+			FilePath = null;
+			lines = new List<List<Rune>> ();
 			return true;
 		}
 
@@ -79,14 +71,21 @@ namespace Terminal.Gui {
 		{
 			var lines = new List<List<Rune>> ();
 			int start = 0, i = 0;
+			var hasCR = false;
+			// ASCII code 13 = Carriage Return.
 			// ASCII code 10 = Line Feed.
 			for (; i < content.Length; i++) {
+				if (content [i] == 13) {
+					hasCR = true;
+					continue;
+				}
 				if (content [i] == 10) {
 					if (i - start > 0)
-						lines.Add (ToRunes (content [start, i]));
+						lines.Add (ToRunes (content [start, hasCR ? i - 1 : i]));
 					else
 						lines.Add (ToRunes (ustring.Empty));
 					start = i + 1;
+					hasCR = false;
 				}
 			}
 			if (i - start >= 0)
@@ -109,16 +108,23 @@ namespace Terminal.Gui {
 			var buff = new BufferedStream (input);
 			int v;
 			var line = new List<byte> ();
+			var wasNewLine = false;
 			while ((v = buff.ReadByte ()) != -1) {
+				if (v == 13) {
+					continue;
+				}
 				if (v == 10) {
 					Append (line);
 					line.Clear ();
+					wasNewLine = true;
 					continue;
 				}
 				line.Add ((byte)v);
+				wasNewLine = false;
 			}
-			if (line.Count > 0)
+			if (line.Count > 0 || wasNewLine)
 				Append (line);
+			buff.Dispose ();
 		}
 
 		public void LoadString (ustring content)
@@ -1241,10 +1247,8 @@ namespace Terminal.Gui {
 		/// <param name="path">Path to the file to load.</param>
 		public bool LoadFile (string path)
 		{
-			if (path == null)
-				throw new ArgumentNullException (nameof (path));
-			ResetPosition ();
 			var res = model.LoadFile (path);
+			ResetPosition ();
 			SetNeedsDisplay ();
 			return res;
 		}
@@ -1256,10 +1260,8 @@ namespace Terminal.Gui {
 		/// <param name="stream">Stream to load the contents from.</param>
 		public void LoadStream (Stream stream)
 		{
-			if (stream == null)
-				throw new ArgumentNullException (nameof (stream));
-			ResetPosition ();
 			model.LoadStream (stream);
+			ResetPosition ();
 			SetNeedsDisplay ();
 		}
 
@@ -1269,8 +1271,8 @@ namespace Terminal.Gui {
 		/// <returns><c>true</c>, if stream was closed, <c>false</c> otherwise.</returns>
 		public bool CloseFile ()
 		{
-			ResetPosition ();
 			var res = model.CloseFile ();
+			ResetPosition ();
 			SetNeedsDisplay ();
 			return res;
 		}
@@ -1298,12 +1300,8 @@ namespace Terminal.Gui {
 				SetNeedsDisplay (new Rect (0, minRow, Frame.Width, maxRow));
 			}
 			var line = model.GetLine (currentRow);
-			var retreat = 0;
 			var col = 0;
 			if (line.Count > 0) {
-				retreat = Math.Max (SpecialRune (line [Math.Min (Math.Max (currentColumn - leftColumn - 1, 0), line.Count - 1)])
-					? 1 : 0, 0);
-
 				for (int idx = leftColumn; idx < line.Count; idx++) {
 					if (idx >= currentColumn)
 						break;
@@ -1314,7 +1312,6 @@ namespace Terminal.Gui {
 					TextModel.SetCol (ref col, Frame.Width, cols);
 				}
 			}
-			col += retreat;
 			if ((col >= leftColumn || col < Frame.Width)
 				&& topRow <= currentRow && currentRow - topRow + BottomOffset < Frame.Height) {
 				ResetCursorVisibility ();
@@ -1701,7 +1698,7 @@ namespace Terminal.Gui {
 						&& HasFocus && idxCol < lineRuneCount) {
 						ColorUsed (line, idxCol);
 					} else {
-						ColorNormal (line,idxCol);
+						ColorNormal (line, idxCol);
 					}
 
 					if (rune == '\t' && TabWidth > 0) {
@@ -1714,10 +1711,8 @@ namespace Terminal.Gui {
 								AddRune (col + i, row, ' ');
 							}
 						}
-					} else if (!SpecialRune (rune)) {
-						AddRune (col, row, rune);
 					} else {
-						col++;
+						AddRune (col, row, rune);
 					}
 					if (!TextModel.SetCol (ref col, bounds.Right, cols)) {
 						break;
@@ -1738,17 +1733,6 @@ namespace Terminal.Gui {
 			}
 
 			PositionCursor ();
-		}
-
-		bool SpecialRune (Rune rune)
-		{
-			switch (rune) {
-			case (uint)Key.Enter:
-			case 0xd:
-				return true;
-			default:
-				return false;
-			}
 		}
 
 		///<inheritdoc/>
@@ -1974,7 +1958,7 @@ namespace Terminal.Gui {
 			List<Rune> rest;
 
 			// if the user presses Left (without any control keys) and they are at the start of the text
-			if(kb.Key == Key.CursorLeft && currentColumn == 0 && currentRow == 0) {
+			if (kb.Key == Key.CursorLeft && currentColumn == 0 && currentRow == 0) {
 				// do not respond (this lets the key press fall through to navigation system - which usually changes focus backward)
 				return false;
 			}
