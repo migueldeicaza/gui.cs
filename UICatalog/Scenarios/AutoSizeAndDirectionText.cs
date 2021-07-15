@@ -53,7 +53,8 @@ namespace UICatalog {
 
 			var ckbAutoSize = new CheckBox ("Auto Size") {
 				X = Pos.Center (),
-				Y = Pos.Center () + 5
+				Y = Pos.Center () + 5,
+				Checked = labelH.AutoSize = labelV.AutoSize
 			};
 			ckbAutoSize.Toggled += (_) => labelH.AutoSize = labelV.AutoSize = ckbAutoSize.Checked;
 			Win.Add (ckbAutoSize);
