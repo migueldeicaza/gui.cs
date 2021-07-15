@@ -52,9 +52,7 @@ namespace Terminal.Gui {
 		public FrameView (Rect frame, ustring title = null) : base (frame)
 		{
 			var cFrame = new Rect (1, 1, Math.Max (frame.Width - 2, 0), Math.Max (frame.Height - 2, 0));
-			this.title = title;
-			contentView = new ContentView (cFrame);
-			Initialize ();
+			Initialize (title, cFrame);
 		}
 
 		/// <summary>
@@ -65,10 +63,7 @@ namespace Terminal.Gui {
 		/// /// <param name="views">Views.</param>
 		public FrameView (Rect frame, ustring title, View [] views) : this (frame, title)
 		{
-			foreach (var view in views) {
-				contentView.Add (view);
-			}
-			Initialize ();
+			Initialize (title, frame, views);
 		}
 
 		/// <summary>
@@ -77,14 +72,7 @@ namespace Terminal.Gui {
 		/// <param name="title">Title.</param>
 		public FrameView (ustring title)
 		{
-			this.title = title;
-			contentView = new ContentView () {
-				X = 1,
-				Y = 1,
-				Width = Dim.Fill (1),
-				Height = Dim.Fill (1)
-			};
-			Initialize ();
+			Initialize (title, Rect.Empty);
 		}
 
 		/// <summary>
@@ -92,8 +80,25 @@ namespace Terminal.Gui {
 		/// </summary>
 		public FrameView () : this (title: string.Empty) { }
 
-		void Initialize ()
+		void Initialize (ustring title, Rect frame, View [] views = null)
 		{
+			this.title = title;
+			if (frame == Rect.Empty) {
+				const int wb = 1;
+				contentView = new ContentView () {
+					X = wb,
+					Y = wb,
+					Width = Dim.Fill (wb),
+					Height = Dim.Fill (wb)
+				};
+			} else {
+				contentView = new ContentView (frame);
+			}
+			if (views != null) {
+				foreach (var view in views) {
+					contentView.Add (view);
+				}
+			}
 			if (Subviews?.Count == 0) {
 				base.Add (contentView);
 				contentView.Text = base.Text;
