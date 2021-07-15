@@ -450,6 +450,9 @@ namespace Terminal.Gui {
 
 		private void SetSearchSet ()
 		{
+			if (searchset == null) {
+				searchset = new List<object> ();
+			}
 			// force deep copy
 			foreach (var item in Source.ToList ()) {
 				searchset.Add (item);
