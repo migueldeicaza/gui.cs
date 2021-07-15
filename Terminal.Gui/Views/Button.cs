@@ -99,6 +99,8 @@ namespace Terminal.Gui {
 
 		void Init (ustring text, bool is_default)
 		{
+			TextAlignment = TextAlignment.Centered;
+
 			HotKeySpecifier = new Rune ('_');
 
 			_leftBracket = new Rune (Driver != null ? Driver.LeftBracket : '[');
