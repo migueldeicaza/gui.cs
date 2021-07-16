@@ -10,7 +10,7 @@
 //   - "Colors" type or "Attributes" type?
 //   - What to surface as "BackgroundCOlor" when clearing a window, an attribute or colors?
 //
-// Optimziations
+// Optimizations
 //   - Add rendering limitation to the exposed area
 using System;
 using System.Collections;
@@ -23,7 +23,7 @@ using System.ComponentModel;
 namespace Terminal.Gui {
 
 	/// <summary>
-	/// A static, singelton class provding the main application driver for Terminal.Gui apps. 
+	/// A static, singleton class providing the main application driver for Terminal.Gui apps. 
 	/// </summary>
 	/// <example>
 	/// <code>
@@ -55,11 +55,43 @@ namespace Terminal.Gui {
 	///   </para>
 	/// </remarks>
 	public static class Application {
+		static Stack<Toplevel> toplevels = new Stack<Toplevel> ();
+
 		/// <summary>
 		/// The current <see cref="ConsoleDriver"/> in use.
 		/// </summary>
 		public static ConsoleDriver Driver;
-		
+
+		/// <summary>
+		/// Gets all the Mdi childes which represent all the not modal <see cref="Toplevel"/> from the <see cref="MdiTop"/>.
+		/// </summary>
+		public static List<Toplevel> MdiChildes {
+			get {
+				if (MdiTop != null) {
+					List<Toplevel> mdiChildes = new List<Toplevel> ();
+					foreach (var top in toplevels) {
+						if (top != MdiTop && !top.Modal) {
+							mdiChildes.Add (top);
+						}
+					}
+					return mdiChildes;
+				}
+				return null;
+			}
+		}
+
+		/// <summary>
+		/// The <see cref="Toplevel"/> object used for the application on startup which <see cref="Toplevel.IsMdiContainer"/> is true.
+		/// </summary>
+		public static Toplevel MdiTop {
+			get {
+				if (Top.IsMdiContainer) {
+					return Top;
+				}
+				return null;
+			}
+		}
+
 		/// <summary>
 		/// The <see cref="Toplevel"/> object used for the application on startup (<seealso cref="Application.Top"/>)
 		/// </summary>
@@ -124,8 +156,6 @@ namespace Terminal.Gui {
 		/// </summary>
 		/// <value>The main loop.</value>
 		public static MainLoop MainLoop { get; private set; }
-
-		static Stack<Toplevel> toplevels = new Stack<Toplevel> ();
 
 		/// <summary>
 		///   This event is raised on each iteration of the <see cref="MainLoop"/> 
@@ -349,6 +379,72 @@ namespace Terminal.Gui {
 			}
 		}
 
+		static View FindDeepestTop (Toplevel start, int x, int y, out int resx, out int resy)
+		{
+			var startFrame = start.Frame;
+
+			if (!startFrame.Contains (x, y)) {
+				resx = 0;
+				resy = 0;
+				return null;
+			}
+
+			if (toplevels != null) {
+				int count = toplevels.Count;
+				if (count > 0) {
+					var rx = x - startFrame.X;
+					var ry = y - startFrame.Y;
+					foreach (var t in toplevels) {
+						if (t != Current) {
+							if (t != start && t.Visible && t.Frame.Contains (rx, ry)) {
+								start = t;
+								break;
+							}
+						}
+					}
+				}
+			}
+			resx = x - startFrame.X;
+			resy = y - startFrame.Y;
+			return start;
+		}
+
+		static View FindDeepestMdiView (View start, int x, int y, out int resx, out int resy)
+		{
+			if (start.GetType ().BaseType != typeof (Toplevel)
+				&& !((Toplevel)start).IsMdiContainer) {
+				resx = 0;
+				resy = 0;
+				return null;
+			}
+
+			var startFrame = start.Frame;
+
+			if (!startFrame.Contains (x, y)) {
+				resx = 0;
+				resy = 0;
+				return null;
+			}
+
+			int count = toplevels.Count;
+			for (int i = count - 1; i >= 0; i--) {
+				foreach (var top in toplevels) {
+					var rx = x - startFrame.X;
+					var ry = y - startFrame.Y;
+					if (top.Visible && top.Frame.Contains (rx, ry)) {
+						var deep = FindDeepestView (top, rx, ry, out resx, out resy);
+						if (deep == null)
+							return FindDeepestMdiView (top, rx, ry, out resx, out resy);
+						if (deep != MdiTop)
+							return deep;
+					}
+				}
+			}
+			resx = x - startFrame.X;
+			resy = y - startFrame.Y;
+			return start;
+		}
+
 		static View FindDeepestView (View start, int x, int y, out int resx, out int resy)
 		{
 			var startFrame = start.Frame;
@@ -378,6 +474,18 @@ namespace Terminal.Gui {
 			resx = x - startFrame.X;
 			resy = y - startFrame.Y;
 			return start;
+		}
+
+		static View FindTopFromView (View view)
+		{
+			View top = view?.SuperView != null ? view.SuperView : view;
+
+			while (top?.SuperView != null) {
+				if (top?.SuperView != null) {
+					top = top.SuperView;
+				}
+			}
+			return top;
 		}
 
 		internal static View mouseGrabView;
@@ -441,6 +549,17 @@ namespace Terminal.Gui {
 				}
 			}
 
+			if ((view == null || view == MdiTop) && !Current.Modal && MdiTop != null
+				&& me.Flags != MouseFlags.ReportMousePosition && me.Flags != 0) {
+
+				var top = FindDeepestTop (Top, me.X, me.Y, out _, out _);
+				view = FindDeepestView (top, me.X, me.Y, out rx, out ry);
+
+				if (view != null && view != MdiTop && top != Current) {
+					MoveCurrent ((Toplevel)top);
+				}
+			}
+
 			if (view != null) {
 				var nme = new MouseEvent () {
 					X = rx,
@@ -473,6 +592,56 @@ namespace Terminal.Gui {
 			}
 		}
 
+		// Only return true if the Current has changed.
+		static bool MoveCurrent (Toplevel top)
+		{
+			// The Current is modal and the top is not modal toplevel then
+			// the Current must be moved above the first not modal toplevel.
+			if (MdiTop != null && top != MdiTop && top != Current && Current?.Modal == true && !toplevels.Peek ().Modal) {
+				lock (toplevels) {
+					toplevels.MoveTo (Current, 0, new ToplevelEqualityComparer ());
+				}
+				var index = 0;
+				var savedToplevels = toplevels.ToArray ();
+				foreach (var t in savedToplevels) {
+					if (!t.Modal && t != Current && t != top && t != savedToplevels [index]) {
+						lock (toplevels) {
+							toplevels.MoveTo (top, index, new ToplevelEqualityComparer ());
+						}
+					}
+					index++;
+				}
+				return false;
+			}
+			// The Current and the top are both not running toplevel then
+			// the top must be moved above the first not running toplevel.
+			if (MdiTop != null && top != MdiTop && top != Current && Current?.Running == false && !top.Running) {
+				lock (toplevels) {
+					toplevels.MoveTo (Current, 0, new ToplevelEqualityComparer ());
+				}
+				var index = 0;
+				foreach (var t in toplevels.ToArray ()) {
+					if (!t.Running && t != Current && index > 0) {
+						lock (toplevels) {
+							toplevels.MoveTo (top, index - 1, new ToplevelEqualityComparer ());
+						}
+					}
+					index++;
+				}
+				return false;
+			}
+			if ((MdiTop != null && top?.Modal == true && toplevels.Peek () != top)
+				|| (MdiTop != null && Current != MdiTop && Current?.Modal == false && top == MdiTop)
+				|| (MdiTop != null && Current?.Modal == false && top != Current)
+				|| (MdiTop != null && Current?.Modal == true && top == MdiTop)) {
+				lock (toplevels) {
+					toplevels.MoveTo (top, 0, new ToplevelEqualityComparer ());
+					Current = top;
+				}
+			}
+			return true;
+		}
+
 		static bool OutsideFrame (Point p, Rect r)
 		{
 			return p.X < 0 || p.X > r.Width - 1 || p.Y < 0 || p.Y > r.Height - 1;
@@ -493,8 +662,12 @@ namespace Terminal.Gui {
 		/// </remarks>
 		public static RunState Begin (Toplevel toplevel)
 		{
-			if (toplevel == null)
+			if (toplevel == null) {
 				throw new ArgumentNullException (nameof (toplevel));
+			} else if (toplevel.IsMdiContainer && MdiTop != null) {
+				throw new InvalidOperationException ("Only one Mdi Container is allowed.");
+			}
+
 			var rs = new RunState (toplevel);
 
 			Init ();
@@ -506,17 +679,67 @@ namespace Terminal.Gui {
 				initializable.BeginInit ();
 				initializable.EndInit ();
 			}
-			toplevels.Push (toplevel);
-			Current = toplevel;
+
+			lock (toplevels) {
+				if (string.IsNullOrEmpty (toplevel.Id.ToString ())) {
+					var count = 1;
+					var id = (toplevels.Count + count).ToString ();
+					while (toplevels.Count > 0 && toplevels.FirstOrDefault (x => x.Id.ToString () == id) != null) {
+						count++;
+						id = (toplevels.Count + count).ToString ();
+					}
+					toplevel.Id = (toplevels.Count + count).ToString ();
+
+					toplevels.Push (toplevel);
+				} else {
+					var dup = toplevels.FirstOrDefault (x => x.Id.ToString () == toplevel.Id);
+					if (dup == null) {
+						toplevels.Push (toplevel);
+					}
+				}
+
+				if (toplevels.FindDuplicates (new ToplevelEqualityComparer ()).Count > 0) {
+					throw new ArgumentException ("There are duplicates toplevels Id's");
+				}
+			}
+			if (toplevel.IsMdiContainer) {
+				Top = toplevel;
+			}
+
+			var refreshDriver = true;
+			if (MdiTop == null || toplevel.IsMdiContainer || (Current?.Modal == false && toplevel.Modal)
+				|| (Current?.Modal == false && !toplevel.Modal) || (Current?.Modal == true && toplevel.Modal)) {
+
+				if (toplevel.Visible) {
+					Current = toplevel;
+					SetCurrentAsTop ();
+				} else {
+					refreshDriver = false;
+				}
+			} else if ((MdiTop != null && toplevel != MdiTop && Current?.Modal == true && !toplevels.Peek ().Modal)
+				|| (MdiTop != null && toplevel != MdiTop && Current?.Running == false)) {
+				refreshDriver = false;
+				MoveCurrent (toplevel);
+			} else {
+				refreshDriver = false;
+				MoveCurrent (Current);
+			}
+
 			Driver.PrepareToRun (MainLoop, ProcessKeyEvent, ProcessKeyDownEvent, ProcessKeyUpEvent, ProcessMouseEvent);
 			if (toplevel.LayoutStyle == LayoutStyle.Computed)
 				toplevel.SetRelativeLayout (new Rect (0, 0, Driver.Cols, Driver.Rows));
+			toplevel.PositionToplevels ();
 			toplevel.LayoutSubviews ();
 			toplevel.WillPresent ();
-			toplevel.OnLoaded ();
-			Redraw (toplevel);
-			toplevel.PositionCursor ();
-			Driver.Refresh ();
+			if (refreshDriver) {
+				if (MdiTop != null) {
+					MdiTop.OnChildLoaded (toplevel);
+				}
+				toplevel.OnLoaded ();
+				Redraw (toplevel);
+				toplevel.PositionCursor ();
+				Driver.Refresh ();
+			}
 
 			return rs;
 		}
@@ -530,7 +753,11 @@ namespace Terminal.Gui {
 			if (runState == null)
 				throw new ArgumentNullException (nameof (runState));
 
-			runState.Toplevel.OnUnloaded ();
+			if (MdiTop != null) {
+				MdiTop.OnChildUnloaded (runState.Toplevel);
+			} else {
+				runState.Toplevel.OnUnloaded ();
+			}
 			runState.Dispose ();
 		}
 
@@ -544,9 +771,10 @@ namespace Terminal.Gui {
 
 		// Encapsulate all setting of initial state for Application; Having
 		// this in a function like this ensures we don't make mistakes in
-		// guranteeing that the state of this singleton is deterministic when Init
+		// guaranteeing that the state of this singleton is deterministic when Init
 		// starts running and after Shutdown returns.
-		static void ResetState () {
+		static void ResetState ()
+		{
 			// Shutdown is the bookend for Init. As such it needs to clean up all resources
 			// Init created. Apps that do any threading will need to code defensively for this.
 			// e.g. see Issue #537
@@ -595,8 +823,10 @@ namespace Terminal.Gui {
 			Driver.UpdateScreen ();
 			View last = null;
 			foreach (var v in toplevels.Reverse ()) {
-				v.SetNeedsDisplay ();
-				v.Redraw (v.Bounds);
+				if (v.Visible) {
+					v.SetNeedsDisplay ();
+					v.Redraw (v.Bounds);
+				}
 				last = v;
 			}
 			last?.PositionCursor ();
@@ -609,10 +839,21 @@ namespace Terminal.Gui {
 				throw new ArgumentException ("The view that you end with must be balanced");
 			toplevels.Pop ();
 
+			(view as Toplevel)?.OnClosed ((Toplevel)view);
+
+			if (MdiTop != null && !((Toplevel)view).Modal && view != MdiTop) {
+				MdiTop.OnChildClosed (view as Toplevel);
+			}
+
 			if (toplevels.Count == 0) {
 				Current = null;
 			} else {
 				Current = toplevels.Peek ();
+				if (toplevels.Count == 1 && Current == MdiTop) {
+					MdiTop.OnAllChildClosed ();
+				} else {
+					SetCurrentAsTop ();
+				}
 				Refresh ();
 			}
 		}
@@ -644,18 +885,29 @@ namespace Terminal.Gui {
 
 					MainLoop.MainIteration ();
 					Iteration?.Invoke ();
-					
+
+					EnsureModalAlwaysOnTop (state.Toplevel);
+					if ((state.Toplevel != Current && Current?.Modal == true)
+						|| (state.Toplevel != Current && Current?.Modal == false)) {
+						MdiTop?.OnDeactivate (state.Toplevel);
+						state.Toplevel = Current;
+						MdiTop?.OnActivate (state.Toplevel);
+						Top.SetChildNeedsDisplay ();
+						Refresh ();
+					}
 					if (Driver.EnsureCursorVisibility ()) {
 						state.Toplevel.SetNeedsDisplay ();
 					}
 				} else if (!wait) {
 					return;
 				}
-				if (state.Toplevel != Top && (!Top.NeedDisplay.IsEmpty || Top.ChildNeedsDisplay || Top.LayoutNeeded)) {
+				if (state.Toplevel != Top
+					&& (!Top.NeedDisplay.IsEmpty || Top.ChildNeedsDisplay || Top.LayoutNeeded)) {
 					Top.Redraw (Top.Bounds);
 					state.Toplevel.SetNeedsDisplay (state.Toplevel.Bounds);
 				}
-				if (!state.Toplevel.NeedDisplay.IsEmpty || state.Toplevel.ChildNeedsDisplay || state.Toplevel.LayoutNeeded) {
+				if (!state.Toplevel.NeedDisplay.IsEmpty || state.Toplevel.ChildNeedsDisplay || state.Toplevel.LayoutNeeded
+					|| MdiChildNeedsDisplay ()) {
 					state.Toplevel.Redraw (state.Toplevel.Bounds);
 					if (DebugDrawBounds) {
 						DrawBounds (state.Toplevel);
@@ -665,7 +917,40 @@ namespace Terminal.Gui {
 				} else {
 					Driver.UpdateCursor ();
 				}
+				if (state.Toplevel != Top && !state.Toplevel.Modal
+					&& (!Top.NeedDisplay.IsEmpty || Top.ChildNeedsDisplay || Top.LayoutNeeded)) {
+					Top.Redraw (Top.Bounds);
+				}
 			}
+		}
+
+		static void EnsureModalAlwaysOnTop (Toplevel toplevel)
+		{
+			if (!toplevel.Running || toplevel == Current || MdiTop == null || toplevels.Peek ().Modal) {
+				return;
+			}
+
+			foreach (var top in toplevels.Reverse ()) {
+				if (top.Modal && top != Current) {
+					MoveCurrent (top);
+					return;
+				}
+			}
+		}
+
+		static bool MdiChildNeedsDisplay ()
+		{
+			if (MdiTop == null) {
+				return false;
+			}
+
+			foreach (var top in toplevels) {
+				if (top != Current && top.Visible && (!top.NeedDisplay.IsEmpty || top.ChildNeedsDisplay || top.LayoutNeeded)) {
+					MdiTop.SetChildNeedsDisplay ();
+					return true;
+				}
+			}
+			return false;
 		}
 
 		internal static bool DebugDrawBounds = false;
@@ -692,8 +977,16 @@ namespace Terminal.Gui {
 		/// </summary>
 		public static void Run<T> (Func<Exception, bool> errorHandler = null) where T : Toplevel, new()
 		{
-			Init (() => new T ());
-			Run (Top, errorHandler);
+			if (_initialized && Driver != null) {
+				var top = new T ();
+				if (top.GetType ().BaseType != typeof (Toplevel)) {
+					throw new ArgumentException (top.GetType ().BaseType.Name);
+				}
+				Run (top, errorHandler);
+			} else {
+				Init (() => new T ());
+				Run (Top, errorHandler);
+			}
 		}
 
 		/// <summary>
@@ -723,7 +1016,7 @@ namespace Terminal.Gui {
 		///     When <paramref name="errorHandler"/> is null the exception is rethrown, when it returns true the application is resumed and when false method exits gracefully.
 		///   </para>
 		/// </remarks>
-		/// <param name="view">The <see cref="Toplevel"/> tu run modally.</param>
+		/// <param name="view">The <see cref="Toplevel"/> to run modally.</param>
 		/// <param name="errorHandler">Handler for any unhandled exceptions (resumes when returns true, rethrows when null).</param>
 		public static void Run (Toplevel view, Func<Exception, bool> errorHandler = null)
 		{
@@ -751,19 +1044,74 @@ namespace Terminal.Gui {
 		}
 
 		/// <summary>
-		/// Stops running the most recent <see cref="Toplevel"/>. 
+		/// Stops running the most recent <see cref="Toplevel"/> or the <paramref name="top"/> if provided.
 		/// </summary>
+		/// <param name="top">The toplevel to request stop.</param>
 		/// <remarks>
 		///   <para>
 		///   This will cause <see cref="Application.Run(Func{Exception, bool})"/> to return.
 		///   </para>
 		///   <para>
-		///     Calling <see cref="Application.RequestStop"/> is equivalent to setting the <see cref="Toplevel.Running"/> property on the curently running <see cref="Toplevel"/> to false.
+		///     Calling <see cref="Application.RequestStop"/> is equivalent to setting the <see cref="Toplevel.Running"/> property on the currently running <see cref="Toplevel"/> to false.
 		///   </para>
 		/// </remarks>
-		public static void RequestStop ()
+		public static void RequestStop (Toplevel top = null)
 		{
-			Current.Running = false;
+			if (MdiTop == null || top == null || (MdiTop == null && top != null)) {
+				top = Current;
+			}
+
+			if (MdiTop != null && top.IsMdiContainer && top?.Running == true
+				&& (Current?.Modal == false || (Current?.Modal == true && Current?.Running == false))) {
+
+				MdiTop.RequestStop ();
+			} else if (MdiTop != null && top != Current && Current?.Running == true && Current?.Modal == true
+				&& top.Modal && top.Running) {
+
+				var ev = new ToplevelClosingEventArgs (Current);
+				Current.OnClosing (ev);
+				if (ev.Cancel) {
+					return;
+				}
+				ev = new ToplevelClosingEventArgs (top);
+				top.OnClosing (ev);
+				if (ev.Cancel) {
+					return;
+				}
+				Current.Running = false;
+				top.Running = false;
+			} else if ((MdiTop != null && top != MdiTop && top != Current && Current?.Modal == false
+				&& Current?.Running == true && !top.Running)
+				|| (MdiTop != null && top != MdiTop && top != Current && Current?.Modal == false
+				&& Current?.Running == false && !top.Running && toplevels.ToArray () [1].Running)) {
+
+				MoveCurrent (top);
+			} else if (MdiTop != null && Current != top && Current?.Running == true && !top.Running
+				&& Current?.Modal == true && top.Modal) {
+				// The Current and the top are both modal so needed to set the Current.Running to false too.
+				Current.Running = false;
+			} else if (MdiTop != null && Current == top && MdiTop?.Running == true && Current?.Running == true && top.Running
+				&& Current?.Modal == true && top.Modal) {
+				// The MdiTop was requested to stop inside a modal toplevel which is the Current and top,
+				// both are the same, so needed to set the Current.Running to false too.
+				Current.Running = false;
+			} else {
+				Toplevel currentTop;
+				if (top == Current || (Current?.Modal == true && !top.Modal)) {
+					currentTop = Current;
+				} else {
+					currentTop = top;
+				}
+				if (!currentTop.Running) {
+					return;
+				}
+				var ev = new ToplevelClosingEventArgs (currentTop);
+				currentTop.OnClosing (ev);
+				if (ev.Cancel) {
+					return;
+				}
+				currentTop.Running = false;
+			}
 		}
 
 		/// <summary>
@@ -788,17 +1136,95 @@ namespace Terminal.Gui {
 		static void TerminalResized ()
 		{
 			var full = new Rect (0, 0, Driver.Cols, Driver.Rows);
-			Top.Frame = full;
-			Top.Width = full.Width;
-			Top.Height = full.Height;
+			SetToplevelsSize (full);
 			Resized?.Invoke (new ResizedEventArgs () { Cols = full.Width, Rows = full.Height });
 			Driver.Clip = full;
 			foreach (var t in toplevels) {
-				t.PositionToplevels ();
 				t.SetRelativeLayout (full);
+				t.PositionToplevels ();
 				t.LayoutSubviews ();
 			}
 			Refresh ();
+		}
+
+		static void SetToplevelsSize (Rect full)
+		{
+			if (MdiTop == null) {
+				foreach (var t in toplevels) {
+					if (t?.SuperView == null && !t.Modal) {
+						t.Frame = full;
+						t.Width = full.Width;
+						t.Height = full.Height;
+					}
+				}
+			} else {
+				Top.Frame = full;
+				Top.Width = full.Width;
+				Top.Height = full.Height;
+			}
+		}
+
+		static bool SetCurrentAsTop ()
+		{
+			if (MdiTop == null && Current != Top && Current?.SuperView == null && Current?.Modal == false) {
+				Top = Current;
+				return true;
+			}
+			return false;
+		}
+
+		/// <summary>
+		/// Move to the next Mdi child from the <see cref="MdiTop"/>.
+		/// </summary>
+		public static void MoveNext ()
+		{
+			if (MdiTop != null && !Current.Modal) {
+				lock (toplevels) {
+					toplevels.MoveNext ();
+					while (toplevels.Peek () == MdiTop || !toplevels.Peek ().Visible) {
+						toplevels.MoveNext ();
+					}
+					Current = toplevels.Peek ();
+				}
+			}
+		}
+
+		/// <summary>
+		/// Move to the previous Mdi child from the <see cref="MdiTop"/>.
+		/// </summary>
+		public static void MovePrevious ()
+		{
+			if (MdiTop != null && !Current.Modal) {
+				lock (toplevels) {
+					toplevels.MovePrevious ();
+					while (toplevels.Peek () == MdiTop || !toplevels.Peek ().Visible) {
+						lock (toplevels) {
+							toplevels.MovePrevious ();
+						}
+					}
+					Current = toplevels.Peek ();
+				}
+			}
+		}
+
+		internal static bool ShowChild (Toplevel top)
+		{
+			if (top.Visible && MdiTop != null && Current?.Modal == false) {
+				lock (toplevels) {
+					toplevels.MoveTo (top, 0, new ToplevelEqualityComparer ());
+					Current = top;
+				}
+				return true;
+			}
+			return false;
+		}
+
+		/// <summary>
+		/// Wakes up the mainloop that might be waiting on input, must be thread safe.
+		/// </summary>
+		public static void DoEvents ()
+		{
+			MainLoop.Driver.Wakeup ();
 		}
 	}
 }

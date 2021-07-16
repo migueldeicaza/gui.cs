@@ -228,6 +228,8 @@ namespace UICatalog {
 
 			Top.Add (_leftPane, _settingsPane, _hostPane);
 
+			Top.LayoutSubviews ();
+
 			_curView = CreateClass (_viewClasses.First ().Value);
 		}
 
@@ -236,7 +238,12 @@ namespace UICatalog {
 			if (view == null) {
 				return;
 			}
+
+			var layout = view.LayoutStyle;
+
 			try {
+				view.LayoutStyle = LayoutStyle.Absolute;
+
 				switch (_xRadioGroup.SelectedItem) {
 				case 0:
 					view.X = Pos.Percent (_xVal);
@@ -292,6 +299,8 @@ namespace UICatalog {
 				}
 			} catch (Exception e) {
 				MessageBox.ErrorQuery ("Exception", e.Message, "Ok");
+			} finally {
+				view.LayoutStyle = layout;
 			}
 			UpdateTitle (view);
 		}
@@ -366,8 +375,10 @@ namespace UICatalog {
 			view.Width = Dim.Percent(75);
 			view.Height = Dim.Percent (75);
 
-			// Set the colorscheme to make it stand out
-			view.ColorScheme = Colors.Base;
+			// Set the colorscheme to make it stand out if is null by default
+			if (view.ColorScheme == null) {
+				view.ColorScheme = Colors.Base;
+			}
 
 			// If the view supports a Text property, set it so we have something to look at
 			if (view.GetType ().GetProperty ("Text") != null) {

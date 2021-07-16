@@ -7,7 +7,7 @@ using Xunit;
 // Since Application is a singleton we can't run tests in parallel
 [assembly: CollectionBehavior (DisableTestParallelization = true)]
 
-// This class enables test functions annotaed with the [AutoInitShutdown] attribute to 
+// This class enables test functions annotated with the [AutoInitShutdown] attribute to 
 // automatically call Application.Init before called and Application.Shutdown after
 // 
 // This is necessary because a) Application is a singleton and Init/Shutdown must be called

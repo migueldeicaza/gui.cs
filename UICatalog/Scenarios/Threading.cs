@@ -89,7 +89,7 @@ namespace UICatalog {
 			var _btnClearData = new Button (80, 20, "Clear Data");
 			_btnClearData.Clicked += () => { _itemsList.Source = null; LogJob ("Cleaning Data"); };
 			var _btnQuit = new Button (80, 22, "Quit");
-			_btnQuit.Clicked += Application.RequestStop;
+			_btnQuit.Clicked += () => Application.RequestStop ();
 
 			Win.Add (_itemsList, _btnActionCancel, _logJob, text, _btnAction, _btnLambda, _btnHandler, _btnSync, _btnMethod, _btnClearData, _btnQuit);
 

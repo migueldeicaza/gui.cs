@@ -65,6 +65,7 @@ namespace UICatalog {
 		private static ConsoleDriver.DiagnosticFlags _diagnosticFlags;
 		private static bool _heightAsBuffer = false;
 		private static bool _alwaysSetPosition;
+		private static bool _isFirstRunning = true;
 
 		static void Main (string [] args)
 		{
@@ -108,13 +109,15 @@ namespace UICatalog {
 				scenario.Setup ();
 				scenario.Run ();
 
-				static void LoadedHandler ()
-				{
-					_rightPane.SetFocus ();
-					_top.Loaded -= LoadedHandler;
-				}
+				//static void LoadedHandler ()
+				//{
+				//	_rightPane.SetFocus ();
+				//	_top.Loaded -= LoadedHandler;
+				//}
 
-				_top.Loaded += LoadedHandler;
+				//_top.Loaded += LoadedHandler;
+
+				Application.Shutdown ();
 
 #if DEBUG_IDISPOSABLE
 				// After the scenario runs, validate all Responder-based instances
@@ -269,11 +272,21 @@ namespace UICatalog {
 			_top.Add (_leftPane);
 			_top.Add (_rightPane);
 			_top.Add (_statusBar);
+
 			_top.Loaded += () => {
 				if (_runningScenario != null) {
 					_runningScenario = null;
+					_isFirstRunning = false;
 				}
 			};
+			void ReadyHandler ()
+			{
+				if (!_isFirstRunning) {
+					_rightPane.SetFocus ();
+				}
+				_top.Ready -= ReadyHandler;
+			}
+			_top.Ready += ReadyHandler;
 
 			Application.Run (_top);
 			return _runningScenario;

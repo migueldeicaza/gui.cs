@@ -1332,5 +1332,43 @@ namespace Terminal.Gui.Views {
 			Assert.True (label.AutoSize);
 			Assert.Equal ("{X=0,Y=0,Width=28,Height=2}", label.Bounds.ToString ());
 		}
+
+		[Theory]
+		[InlineData (1)]
+		[InlineData (2)]
+		[InlineData (3)]
+		public void LabelChangeText_RendersCorrectly_Constructors (int choice)
+		{
+			var driver = new FakeDriver ();
+			Application.Init (driver, new FakeMainLoop (() => FakeConsole.ReadKey (true)));
+
+			try {
+				// Create a label with a short text 
+				Label lbl;
+				var text = "test";
+
+				if (choice == 1) {
+					// An object initializer should call the default constructor.
+					lbl = new Label { Text = text };
+				} else if (choice == 2) {
+					// Calling the default constructor followed by the object initializer.
+					lbl = new Label () { Text = text };
+				} else {
+					// Calling the Text constructor.
+					lbl = new Label (text);
+				}
+				lbl.ColorScheme = new ColorScheme ();
+				lbl.Redraw (lbl.Bounds);
+
+				// should have the initial text
+				Assert.Equal ('t', driver.Contents [0, 0, 0]);
+				Assert.Equal ('e', driver.Contents [0, 1, 0]);
+				Assert.Equal ('s', driver.Contents [0, 2, 0]);
+				Assert.Equal ('t', driver.Contents [0, 3, 0]);
+				Assert.Equal (' ', driver.Contents [0, 4, 0]);
+			} finally {
+				Application.Shutdown ();
+			}
+		}
 	}
 }

@@ -268,7 +268,7 @@ namespace Terminal.Gui {
 			}
 		}
 
-		private int GetTabIndex (int idx)
+		int GetTabIndex (int idx)
 		{
 			int i = 0;
 			foreach (var v in SuperView.tabIndexes) {
@@ -280,7 +280,7 @@ namespace Terminal.Gui {
 			return Math.Min (i, idx);
 		}
 
-		private void SetTabIndex ()
+		void SetTabIndex ()
 		{
 			int i = 0;
 			foreach (var v in SuperView.tabIndexes) {
@@ -989,8 +989,8 @@ namespace Terminal.Gui {
 		internal void ViewToScreen (int col, int row, out int rcol, out int rrow, bool clipped = true)
 		{
 			// Computes the real row, col relative to the screen.
-			rrow = row + frame.Y;
-			rcol = col + frame.X;
+			rrow = Math.Max (row + frame.Y, 0);
+			rcol = Math.Max (col + frame.X, 0);
 			var ccontainer = container;
 			while (ccontainer != null) {
 				rrow += ccontainer.frame.Y;
@@ -1342,7 +1342,7 @@ namespace Terminal.Gui {
 				Driver.SetAttribute (HasFocus ? ColorScheme.Focus : ColorScheme.Normal);
 			}
 
-			if (!ustring.IsNullOrEmpty (Text)) {
+			if (!ustring.IsNullOrEmpty (Text) || (this is Label && !AutoSize)) {
 				Clear ();
 				// Draw any Text
 				if (textFormatter != null) {
@@ -1957,8 +1957,9 @@ namespace Terminal.Gui {
 				v.LayoutNeeded = false;
 			}
 
-			if (SuperView == Application.Top && LayoutNeeded && ordered.Count == 0 && LayoutStyle == LayoutStyle.Computed) {
-				SetRelativeLayout (Frame);
+			if (SuperView != null && SuperView == Application.Top && LayoutNeeded
+				&& ordered.Count == 0 && LayoutStyle == LayoutStyle.Computed) {
+				SetRelativeLayout (SuperView.Frame);
 			}
 
 			LayoutNeeded = false;

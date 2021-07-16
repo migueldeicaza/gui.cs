@@ -296,37 +296,43 @@ namespace Terminal.Gui.Core {
 			var app = setup ();
 			app.button.Y = Pos.Left (app.win);
 			rs = Application.Begin (Application.Top);
-			Application.Run ();
+			// If Application.RunState is used then we must use Application.RunLoop with the rs parameter
+			Application.RunLoop (rs);
 			cleanup (rs);
 
 			app = setup ();
 			app.button.Y = Pos.X (app.win);
 			rs = Application.Begin (Application.Top);
-			Application.Run ();
+			// If Application.RunState is used then we must use Application.RunLoop with the rs parameter
+			Application.RunLoop (rs);
 			cleanup (rs);
 
 			app = setup ();
 			app.button.Y = Pos.Top (app.win);
 			rs = Application.Begin (Application.Top);
-			Application.Run ();
+			// If Application.RunState is used then we must use Application.RunLoop with the rs parameter
+			Application.RunLoop (rs);
 			cleanup (rs);
 
 			app = setup ();
 			app.button.Y = Pos.Y (app.win);
 			rs = Application.Begin (Application.Top);
-			Application.Run ();
+			// If Application.RunState is used then we must use Application.RunLoop with the rs parameter
+			Application.RunLoop (rs);
 			cleanup (rs);
 
 			app = setup ();
 			app.button.Y = Pos.Bottom (app.win);
 			rs = Application.Begin (Application.Top);
-			Application.Run ();
+			// If Application.RunState is used then we must use Application.RunLoop with the rs parameter
+			Application.RunLoop (rs);
 			cleanup (rs);
 
 			app = setup ();
 			app.button.Y = Pos.Right (app.win);
 			rs = Application.Begin (Application.Top);
-			Application.Run ();
+			// If Application.RunState is used then we must use Application.RunLoop with the rs parameter
+			Application.RunLoop (rs);
 			cleanup (rs);
 		}
 

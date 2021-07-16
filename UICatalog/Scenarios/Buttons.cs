@@ -103,8 +103,13 @@ namespace UICatalog {
 				ColorScheme = Colors.Error
 			};
 			Win.Add (removeButton);
-			// This in intresting test case because `moveBtn` and below are laid out relative to this one!
-			removeButton.Clicked += () => Win.Remove (removeButton);
+			// This in interesting test case because `moveBtn` and below are laid out relative to this one!
+			removeButton.Clicked += () => {
+				// Now this throw a InvalidOperationException on the TopologicalSort method as is expected.
+				//Win.Remove (removeButton);
+
+				removeButton.Visible = false;
+			};
 
 			var computedFrame = new FrameView ("Computed Layout") {
 				X = 0,
